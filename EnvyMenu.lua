@@ -2,9 +2,41 @@
 --==	Envy's Menu		=--
 ---------------------------
 
--- Instances:
+local TeleportService = game:GetService("TeleportService")
+
+local CoreGui = game:GetService("CoreGui")
+local existingGui = CoreGui:FindFirstChild("EnvyMenu")
+if existingGui then
+    return
+end
 
 local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "EnvyMenu"
+ScreenGui.DisplayOrder = 999999999
+ScreenGui.ResetOnSpawn = false
+
+TeleportService.LocalPlayerArrivedFromTeleport:Connect(function(_, _)
+    if CoreGui:FindFirstChild("EnvyMenu") then
+        return
+    end
+end)
+
+local queueOnTeleport = queue_on_teleport or syn and syn.queue_on_teleport
+if queueOnTeleport then
+    local scriptString = [[
+        repeat task.wait() until game:IsLoaded()
+        loadstring(game:HttpGet('PUT_YOUR_RAW_SCRIPT_URL_HERE'))()
+    ]]
+    queueOnTeleport(scriptString)
+end
+
+local success, _ = pcall(function()
+    ScreenGui.Parent = game:GetService("CoreGui")
+end)
+if not success then
+    ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+end
+
 local OpenMenu = Instance.new("TextButton")
 local Menu = Instance.new("Frame")
 local Fullbright = Instance.new("TextButton")
@@ -17,7 +49,6 @@ local Gravity = Instance.new("TextBox")
 
 --Properties:
 
-ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 OpenMenu.Name = "OpenMenu"
