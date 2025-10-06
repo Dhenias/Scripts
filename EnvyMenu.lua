@@ -1,9 +1,44 @@
----------------------------
---==	Envy's Menu 	=--
----------------------------
+---------------------------------------
+--==	Envy's Menu (Protected)		=--
+---------------------------------------
+
+-- Create persistent storage folder
+local StorageFolder = Instance.new("Folder")
+StorageFolder.Name = "EnvyMenuStorage_" .. game:GetService("HttpService"):GenerateGUID(false)
+StorageFolder.Parent = game:GetService("CoreGui")
+
+-- Create IntValues for persistence
+local function createIntValue(name, default)
+	local val = Instance.new("IntValue")
+	val.Name = name
+	val.Value = default
+	val.Parent = StorageFolder
+	return val
+end
+
+local function createStringValue(name, default)
+	local val = Instance.new("StringValue")
+	val.Name = name
+	val.Value = default
+	val.Parent = StorageFolder
+	return val
+end
+
+-- Persistent values
+local PersistentValues = {
+	Fullbright = createIntValue("Fullbright", 0),
+	Speedhack = createIntValue("Speedhack", 0),
+	ESP = createIntValue("ESP", 0),
+	Aimbot = createIntValue("Aimbot", 0),
+	Lay = createIntValue("Lay", 0),
+	Sit = createIntValue("Sit", 0),
+	SpeedValue = createStringValue("SpeedValue", "32"),
+	GravityValue = createStringValue("GravityValue", "196.2"),
+	MaxZoomValue = createStringValue("MaxZoomValue", "400"),
+	MinZoomValue = createStringValue("MinZoomValue", "0.5")
+}
 
 -- Instances:
-
 local ScreenGui = Instance.new("ScreenGui")
 local OpenMenu = Instance.new("TextButton")
 local Menu = Instance.new("Frame")
@@ -19,10 +54,29 @@ local Sit = Instance.new("TextButton")
 local MaxZoom = Instance.new("TextBox")
 local MinZoom = Instance.new("TextBox")
 
---Properties:
-
-ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+-- Protection: Parent to CoreGui (harder to detect/remove)
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.Name = "EnvyMenu_" .. game:GetService("HttpService"):GenerateGUID(false)
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+
+-- Protection function to restore GUI
+local function protectGui()
+	task.spawn(function()
+		while task.wait(0.5) do
+			if not ScreenGui.Parent or ScreenGui.Parent ~= game:GetService("CoreGui") then
+				ScreenGui.Parent = game:GetService("CoreGui")
+			end
+			if not ScreenGui.Enabled then
+				ScreenGui.Enabled = true
+			end
+			if not Menu.Parent then
+				Menu.Parent = OpenMenu
+			end
+		end
+	end)
+end
 
 OpenMenu.Name = "OpenMenu"
 OpenMenu.Parent = ScreenGui
@@ -203,9 +257,11 @@ MinZoom.TextColor3 = Color3.fromRGB(255, 255, 255)
 MinZoom.TextSize = 14.000
 MinZoom.TextTransparency = 0.500
 
--- Scripts:
+-- Start protection
+protectGui()
 
-local function FRTHWNN_fake_script() -- OpenMenu.Open/Close Menu 
+-- Scripts:
+local function OBXW_fake_script()
 	local script = Instance.new('LocalScript', OpenMenu)
 
 	btn = script.Parent
@@ -215,15 +271,16 @@ local function FRTHWNN_fake_script() -- OpenMenu.Open/Close Menu
 		Menu.Visible = not Menu.Visible
 	end)
 end
-coroutine.wrap(FRTHWNN_fake_script)()
-local function OKKLA_fake_script() -- Fullbright.Fullbright 
+coroutine.wrap(OBXW_fake_script)()
+
+local function OOZWWTP_fake_script()
 	local script = Instance.new('LocalScript', Fullbright)
 
 	local button = script.Parent
 	local Lighting = game:GetService("Lighting")
 	local RunService = game:GetService("RunService")
 	
-	local enabled = false
+	local enabled = PersistentValues.Fullbright.Value == 1
 	local connection
 	
 	local originalSettings = {
@@ -256,38 +313,56 @@ local function OKKLA_fake_script() -- Fullbright.Fullbright
 		end
 	end
 	
-	local function toggle()
-		enabled = not enabled
-	
+	local function updateButton()
 		if enabled then
 			button.Text = "FULLBRIGHT ON"
 			button.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+		else
+			button.Text = "FULLBRIGHT OFF"
+			button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		end
+	end
 	
+	local function toggle()
+		enabled = not enabled
+		PersistentValues.Fullbright.Value = enabled and 1 or 0
+	
+		if enabled then
 			applyFullbright()
-	
 			connection = RunService.RenderStepped:Connect(function()
 				applyFullbright()
 			end)
 		else
-			button.Text = "FULLBRIGHT OFF"
-			button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	
 			if connection then
 				connection:Disconnect()
 				connection = nil
 			end
-	
 			restoreOriginal()
 		end
+		updateButton()
 	end
+	
+	-- Restore state on load
+	if enabled then
+		applyFullbright()
+		connection = RunService.RenderStepped:Connect(function()
+			applyFullbright()
+		end)
+	end
+	updateButton()
 	
 	button.MouseButton1Click:Connect(toggle)
 	
-	button.Text = "FULLBRIGHT OFF"
-	button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	-- Protection: Monitor state
+	task.spawn(function()
+		while task.wait(1) do
+			updateButton()
+		end
+	end)
 end
-coroutine.wrap(OKKLA_fake_script)()
-local function JYVB_fake_script() -- Speedhack.Speedhack 
+coroutine.wrap(OOZWWTP_fake_script)()
+
+local function ZNFGTSB_fake_script()
 	local script = Instance.new('LocalScript', Speedhack)
 
 	local button = script.Parent
@@ -299,8 +374,8 @@ local function JYVB_fake_script() -- Speedhack.Speedhack
 	local character = player.Character or player.CharacterAdded:Wait()
 	local humanoid = character:WaitForChild("Humanoid")
 	
-	local SPEED_VALUE = 32
-	local enabled = false
+	local SPEED_VALUE = tonumber(PersistentValues.SpeedValue.Value) or 32
+	local enabled = PersistentValues.Speedhack.Value == 1
 	local connection
 	local originalSpeed = humanoid.WalkSpeed
 	
@@ -320,59 +395,73 @@ local function JYVB_fake_script() -- Speedhack.Speedhack
 		local newSpeed = tonumber(speedTextBox.Text)
 		if newSpeed and newSpeed > 0 then
 			SPEED_VALUE = newSpeed
+			PersistentValues.SpeedValue.Value = tostring(newSpeed)
 			if enabled then
 				applySpeed()
 			end
 		end
 	end
 	
-	local function toggle()
-		enabled = not enabled
-	
+	local function updateButton()
 		if enabled then
 			button.Text = "SPEEDHACK ON"
 			button.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+		else
+			button.Text = "SPEEDHACK OFF"
+			button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		end
+	end
 	
+	local function toggle()
+		enabled = not enabled
+		PersistentValues.Speedhack.Value = enabled and 1 or 0
+	
+		if enabled then
 			applySpeed()
-	
 			connection = RunService.RenderStepped:Connect(function()
 				applySpeed()
 			end)
 		else
-			button.Text = "SPEEDHACK OFF"
-			button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	
 			if connection then
 				connection:Disconnect()
 				connection = nil
 			end
-	
 			restoreSpeed()
 		end
+		updateButton()
 	end
 	
-	button.MouseButton1Click:Connect(toggle)
-	
-	speedTextBox.FocusLost:Connect(function(enterPressed)
-		updateSpeedValue()
-	end)
-	
-	button.Text = "SPEEDHACK OFF"
-	button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	-- Restore state
+	if enabled then
+		applySpeed()
+		connection = RunService.RenderStepped:Connect(function()
+			applySpeed()
+		end)
+	end
+	updateButton()
 	speedTextBox.Text = tostring("SPEED: " .. SPEED_VALUE)
+	
+	button.MouseButton1Click:Connect(toggle)
+	speedTextBox.FocusLost:Connect(updateSpeedValue)
 	
 	player.CharacterAdded:Connect(function(newCharacter)
 		character = newCharacter
 		humanoid = character:WaitForChild("Humanoid")
 		originalSpeed = humanoid.WalkSpeed
-	
 		if enabled then
 			applySpeed()
 		end
 	end)
+	
+	task.spawn(function()
+		while task.wait(1) do
+			updateButton()
+		end
+	end)
 end
-coroutine.wrap(JYVB_fake_script)()
-local function UMTYCO_fake_script() -- ESP.ESP 
+coroutine.wrap(ZNFGTSB_fake_script)()
+
+local function LACNRUZ_fake_script()
 	local script = Instance.new('LocalScript', ESP)
 
 	local button = script.Parent
@@ -381,14 +470,16 @@ local function UMTYCO_fake_script() -- ESP.ESP
 	
 	local localPlayer = Players.LocalPlayer
 	
-	local ESP_TRANSPARENCY = 0.9
+	local ESP_TRANSPARENCY = 0.7
 	local ESP_COLOR = Color3.fromRGB(255, 0, 0)
 	
-	local enabled = false
+	local enabled = PersistentValues.ESP.Value == 1
 	local espCache = {}
 	local connection
 	
-	local function createESP(character)
+	local function createESP(player)
+		if not player or player == localPlayer then return end
+		local character = player.Character
 		if not character then return end
 	
 		local highlight = Instance.new("Highlight")
@@ -401,19 +492,13 @@ local function UMTYCO_fake_script() -- ESP.ESP
 		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 		highlight.Parent = character
 	
-		return highlight
-	end
-	
-	local function createTag(character, player)
-		if not character then return end
-	
-		local head = character:WaitForChild("Head", 2)
-		if not head then return end
+		local head = character:FindFirstChild("Head")
+		if not head then return highlight, nil, nil end
 	
 		local billboard = Instance.new("BillboardGui")
 		billboard.Name = "ESP_Tag"
 		billboard.Adornee = head
-		billboard.Size = UDim2.new(0, 400, 0, 30)
+		billboard.Size = UDim2.new(0, 200, 0, 50)
 		billboard.StudsOffset = Vector3.new(0, 3, 0)
 		billboard.AlwaysOnTop = true
 		billboard.Parent = head
@@ -422,19 +507,25 @@ local function UMTYCO_fake_script() -- ESP.ESP
 		textLabel.Size = UDim2.new(1, 0, 1, 0)
 		textLabel.BackgroundTransparency = 1
 		textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-		textLabel.TextStrokeTransparency = 0.5
+		textLabel.TextStrokeTransparency = 0
+		textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 		textLabel.TextScaled = true
 		textLabel.Font = Enum.Font.GothamBold
 		textLabel.Parent = billboard
 	
-		return billboard, textLabel
+		return highlight, billboard, textLabel
 	end
 	
-	local function updateTag(textLabel, player, character)
-		if not textLabel or not player or not character then return end
-	
+	local function updateTag(player)
+		if not espCache[player] or not espCache[player].textLabel then return end
+		
+		local character = player.Character
+		if not character then return end
+		
+		local textLabel = espCache[player].textLabel
 		local humanoid = character:FindFirstChild("Humanoid")
 		local health = humanoid and math.floor(humanoid.Health) or 0
+		local maxHealth = humanoid and math.floor(humanoid.MaxHealth) or 100
 	
 		local distance = 0
 		if localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -444,132 +535,152 @@ local function UMTYCO_fake_script() -- ESP.ESP
 			end
 		end
 	
-		textLabel.Text = string.format("%s (@%s) | Health: %d | Distance: %d Studs", 
-			player.DisplayName, 
+		textLabel.Text = string.format("%s\n[%d/%d HP]\n%d studs", 
 			player.Name, 
-			health, 
+			health,
+			maxHealth,
 			distance
 		)
 	end
 	
-	local function removeESP(character)
-		if not character then return end
-	
-		local highlight = character:FindFirstChild("ESP_Highlight")
-		if highlight then
-			highlight:Destroy()
+	local function removeESP(player)
+		if not espCache[player] then return end
+		
+		if espCache[player].highlight then
+			espCache[player].highlight:Destroy()
 		end
-	
-		local head = character:FindFirstChild("Head")
-		if head then
-			local tag = head:FindFirstChild("ESP_Tag")
-			if tag then
-				tag:Destroy()
-			end
+		if espCache[player].billboard then
+			espCache[player].billboard:Destroy()
 		end
+		
+		espCache[player] = nil
 	end
 	
-	local function applyESPToAll()
-		for _, player in pairs(Players:GetPlayers()) do
-			if player ~= localPlayer and player.Character then
-				if not espCache[player] then
-					local highlight = createESP(player.Character)
-					local billboard, textLabel = createTag(player.Character, player)
+	local function setupPlayer(player)
+		if player == localPlayer then return end
+		
+		player.CharacterAdded:Connect(function(character)
+			task.wait(0.5)
+			if enabled then
+				removeESP(player)
+				local highlight, billboard, textLabel = createESP(player)
+				if highlight then
 					espCache[player] = {
 						highlight = highlight,
 						billboard = billboard,
 						textLabel = textLabel
 					}
-				else
-					if espCache[player].textLabel then
-						updateTag(espCache[player].textLabel, player, player.Character)
-					end
+					updateTag(player)
 				end
+			end
+		end)
+		
+		if player.Character and enabled then
+			local highlight, billboard, textLabel = createESP(player)
+			if highlight then
+				espCache[player] = {
+					highlight = highlight,
+					billboard = billboard,
+					textLabel = textLabel
+				}
+				updateTag(player)
 			end
 		end
 	end
 	
 	local function removeAllESP()
 		for player, _ in pairs(espCache) do
-			if player.Character then
-				removeESP(player.Character)
-			end
+			removeESP(player)
 		end
 		espCache = {}
 	end
 	
-	local function toggle()
-		enabled = not enabled
+	local function enableESP()
+		for _, player in pairs(Players:GetPlayers()) do
+			if player ~= localPlayer and player.Character then
+				local highlight, billboard, textLabel = createESP(player)
+				if highlight then
+					espCache[player] = {
+						highlight = highlight,
+						billboard = billboard,
+						textLabel = textLabel
+					}
+				end
+			end
+		end
+	end
 	
+	local function updateAllTags()
+		for player, data in pairs(espCache) do
+			if player and player.Parent and player.Character then
+				updateTag(player)
+			else
+				removeESP(player)
+			end
+		end
+	end
+	
+	local function updateButton()
 		if enabled then
 			button.Text = "ESP ON"
 			button.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-	
-			applyESPToAll()
-	
-			connection = RunService.RenderStepped:Connect(function()
-				applyESPToAll()
-			end)
 		else
 			button.Text = "ESP OFF"
 			button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		end
+	end
 	
+	local function toggle()
+		enabled = not enabled
+		PersistentValues.ESP.Value = enabled and 1 or 0
+	
+		if enabled then
+			enableESP()
+			connection = RunService.Heartbeat:Connect(function()
+				updateAllTags()
+			end)
+		else
 			if connection then
 				connection:Disconnect()
 				connection = nil
 			end
-	
 			removeAllESP()
 		end
+		updateButton()
 	end
 	
-	Players.PlayerAdded:Connect(function(player)
-		if enabled and player ~= localPlayer then
-			player.CharacterAdded:Connect(function(character)
-				task.wait(0.1)
-				if enabled then
-					local highlight = createESP(character)
-					local billboard, textLabel = createTag(character, player)
-					espCache[player] = {
-						highlight = highlight,
-						billboard = billboard,
-						textLabel = textLabel
-					}
-				end
-			end)
-		end
-	end)
+	-- Setup existing players
+	for _, player in pairs(Players:GetPlayers()) do
+		setupPlayer(player)
+	end
+	
+	-- Setup new players
+	Players.PlayerAdded:Connect(setupPlayer)
 	
 	Players.PlayerRemoving:Connect(function(player)
-		if espCache[player] then
-			espCache[player] = nil
-		end
+		removeESP(player)
 	end)
 	
-	for _, player in pairs(Players:GetPlayers()) do
-		if player ~= localPlayer then
-			player.CharacterAdded:Connect(function(character)
-				task.wait(0.1)
-				if enabled then
-					local highlight = createESP(character)
-					local billboard, textLabel = createTag(character, player)
-					espCache[player] = {
-						highlight = highlight,
-						billboard = billboard,
-						textLabel = textLabel
-					}
-				end
-			end)
-		end
+	-- Restore state
+	if enabled then
+		enableESP()
+		connection = RunService.Heartbeat:Connect(function()
+			updateAllTags()
+		end)
 	end
+	updateButton()
 	
 	button.MouseButton1Click:Connect(toggle)
 	
-	button.Text = "ESP OFF"
-	button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	task.spawn(function()
+		while task.wait(1) do
+			updateButton()
+		end
+	end)
 end
-coroutine.wrap(UMTYCO_fake_script)()
-local function VLZWZ_fake_script() -- Aimbot.Aimbot 
+coroutine.wrap(LACNRUZ_fake_script)()
+
+local function VBGZN_fake_script()
 	local script = Instance.new('LocalScript', Aimbot)
 
 	local button = script.Parent
@@ -580,19 +691,18 @@ local function VLZWZ_fake_script() -- Aimbot.Aimbot
 	local localPlayer = Players.LocalPlayer
 	local camera = workspace.CurrentCamera
 	
-	-- Configuration
-	local AIM_PART = "Head" -- Part to aim at: "Head", "Torso", "HumanoidRootPart"
-	local FOV_SIZE = 200 -- Field of view circle size (pixels)
-	local SHOW_FOV = true -- Show FOV circle
-	local SMOOTHNESS = 0.7 -- Lower = smoother aim (0.1 - 1)
+	local AIM_PART = "Head"
+	local FOV_SIZE = 200
+	local SHOW_FOV = true
+	local SMOOTHNESS = 0.7
 	
-	local enabled = false
+	local enabled = PersistentValues.Aimbot.Value == 1
 	local connection
 	local fovCircle
 	
 	local function createFOVCircle()
 		local screenGui = Instance.new("ScreenGui")
-		screenGui.Name = "FOV_Circle"
+		screenGui.Name = "FOV_Circle_" .. game:GetService("HttpService"):GenerateGUID(false)
 		screenGui.IgnoreGuiInset = true
 		screenGui.ResetOnSpawn = false
 		screenGui.Parent = game:GetService("CoreGui")
@@ -670,47 +780,70 @@ local function VLZWZ_fake_script() -- Aimbot.Aimbot
 		end
 	end
 	
-	local function toggle()
-		enabled = not enabled
-	
+	local function updateButton()
 		if enabled then
 			button.Text = "AIMBOT ON"
 			button.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+		else
+			button.Text = "AIMBOT OFF"
+			button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		end
+	end
 	
+	local function toggle()
+		enabled = not enabled
+		PersistentValues.Aimbot.Value = enabled and 1 or 0
+	
+		if enabled then
 			if not fovCircle then
 				fovCircle = createFOVCircle()
 			end
 	
 			connection = RunService.RenderStepped:Connect(function()
 				updateFOVCircle()
-	
 				local target = getClosestPlayer()
 				if target then
 					aimAt(target)
 				end
 			end)
 		else
-			button.Text = "AIMBOT OFF"
-			button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	
 			if connection then
 				connection:Disconnect()
 				connection = nil
 			end
-	
 			if fovCircle then
 				fovCircle.Visible = false
 			end
 		end
+		updateButton()
 	end
+	
+	-- Restore state
+	if enabled then
+		if not fovCircle then
+			fovCircle = createFOVCircle()
+		end
+		connection = RunService.RenderStepped:Connect(function()
+			updateFOVCircle()
+			local target = getClosestPlayer()
+			if target then
+				aimAt(target)
+			end
+		end)
+	end
+	updateButton()
 	
 	button.MouseButton1Click:Connect(toggle)
 	
-	button.Text = "AIMBOT OFF"
-	button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	task.spawn(function()
+		while task.wait(1) do
+			updateButton()
+		end
+	end)
 end
-coroutine.wrap(VLZWZ_fake_script)()
-local function BCHV_fake_script() -- Lay.Lay 
+coroutine.wrap(VBGZN_fake_script)()
+
+local function ZREF_fake_script()
 	local script = Instance.new('LocalScript', Lay)
 
 	local button = script.Parent
@@ -722,15 +855,13 @@ local function BCHV_fake_script() -- Lay.Lay
 	local humanoid = character:WaitForChild("Humanoid")
 	local rootPart = character:WaitForChild("HumanoidRootPart")
 	
-	local enabled = false
+	local enabled = PersistentValues.Lay.Value == 1
 	local originalCFrame
 	
 	local function layDown()
 		originalCFrame = rootPart.CFrame
-	
 		humanoid.Sit = true
 		task.wait(0.1)
-	
 		rootPart.CFrame = rootPart.CFrame * CFrame.Angles(math.rad(90), 0, 0)
 		humanoid.PlatformStand = true
 	end
@@ -738,32 +869,46 @@ local function BCHV_fake_script() -- Lay.Lay
 	local function standUp()
 		humanoid.PlatformStand = false
 		humanoid.Sit = false
-	
 		if originalCFrame then
 			rootPart.CFrame = CFrame.new(rootPart.Position) * CFrame.Angles(0, originalCFrame.Rotation.Y, 0)
 		end
 	end
 	
-	local function toggle()
-		enabled = not enabled
-	
+	local function updateButton()
 		if enabled then
 			button.Text = "STAND UP"
 			button.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-			layDown()
 		else
 			button.Text = "LAY DOWN"
 			button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-			standUp()
 		end
 	end
+	
+	local function toggle()
+		enabled = not enabled
+		PersistentValues.Lay.Value = enabled and 1 or 0
+		
+		if enabled then
+			layDown()
+		else
+			standUp()
+		end
+		updateButton()
+	end
+	
+	-- Restore state
+	if enabled then
+		task.wait(0.5)
+		layDown()
+	end
+	updateButton()
 	
 	UserInputService.JumpRequest:Connect(function()
 		if enabled then
 			enabled = false
-			button.Text = "LAY DOWN"
-			button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+			PersistentValues.Lay.Value = 0
 			standUp()
+			updateButton()
 		end
 	end)
 	
@@ -772,17 +917,21 @@ local function BCHV_fake_script() -- Lay.Lay
 		humanoid = character:WaitForChild("Humanoid")
 		rootPart = character:WaitForChild("HumanoidRootPart")
 		enabled = false
-		button.Text = "LAY DOWN"
-		button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		PersistentValues.Lay.Value = 0
+		updateButton()
 	end)
 	
 	button.MouseButton1Click:Connect(toggle)
 	
-	button.Text = "LAY DOWN"
-	button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	task.spawn(function()
+		while task.wait(1) do
+			updateButton()
+		end
+	end)
 end
-coroutine.wrap(BCHV_fake_script)()
-local function BHWHHY_fake_script() -- Gravity.Gravity 
+coroutine.wrap(ZREF_fake_script)()
+
+local function SVKN_fake_script()
 	local script = Instance.new('LocalScript', Gravity)
 
 	local textBox = script.Parent
@@ -797,7 +946,7 @@ local function BHWHHY_fake_script() -- Gravity.Gravity
 	
 	local connection
 	local defaultGravity = math.floor(Workspace.Gravity * 10) / 10
-	local currentGravity = defaultGravity
+	local currentGravity = tonumber(PersistentValues.GravityValue.Value) or defaultGravity
 	local bodyForce
 	
 	local function setGravity(value)
@@ -829,7 +978,6 @@ local function BHWHHY_fake_script() -- Gravity.Gravity
 			connection:Disconnect()
 			connection = nil
 		end
-	
 		if bodyForce and bodyForce.Parent then
 			bodyForce:Destroy()
 			bodyForce = nil
@@ -842,6 +990,7 @@ local function BHWHHY_fake_script() -- Gravity.Gravity
 	
 			if input == "" or input:match("^%s*$") then
 				currentGravity = defaultGravity
+				PersistentValues.GravityValue.Value = tostring(defaultGravity)
 				textBox.PlaceholderText = "GRAVITY: " .. defaultGravity
 				textBox.Text = ""
 				removeGravity()
@@ -852,6 +1001,7 @@ local function BHWHHY_fake_script() -- Gravity.Gravity
 	
 			if value then
 				currentGravity = value
+				PersistentValues.GravityValue.Value = tostring(value)
 				textBox.PlaceholderText = "GRAVITY: " .. value
 				textBox.Text = ""
 	
@@ -881,11 +1031,17 @@ local function BHWHHY_fake_script() -- Gravity.Gravity
 		end
 	end)
 	
-	textBox.PlaceholderText = "GRAVITY: " .. defaultGravity
+	-- Restore state
+	if currentGravity ~= defaultGravity then
+		task.wait(0.5)
+		setGravity(currentGravity)
+	end
+	textBox.PlaceholderText = "GRAVITY: " .. currentGravity
 	textBox.Text = ""
 end
-coroutine.wrap(BHWHHY_fake_script)()
-local function TDKKE_fake_script() -- Sit.Sit 
+coroutine.wrap(SVKN_fake_script)()
+
+local function XSBRDCB_fake_script()
 	local script = Instance.new('LocalScript', Sit)
 
 	local button = script.Parent
@@ -896,7 +1052,7 @@ local function TDKKE_fake_script() -- Sit.Sit
 	local character = player.Character or player.CharacterAdded:Wait()
 	local humanoid = character:WaitForChild("Humanoid")
 	
-	local enabled = false
+	local enabled = PersistentValues.Sit.Value == 1
 	
 	local function sitDown()
 		humanoid.Sit = true
@@ -906,26 +1062,41 @@ local function TDKKE_fake_script() -- Sit.Sit
 		humanoid.Sit = false
 	end
 	
-	local function toggle()
-		enabled = not enabled
-	
+	local function updateButton()
 		if enabled then
 			button.Text = "STAND UP"
 			button.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-			sitDown()
 		else
 			button.Text = "SIT DOWN"
 			button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-			standUp()
 		end
 	end
+	
+	local function toggle()
+		enabled = not enabled
+		PersistentValues.Sit.Value = enabled and 1 or 0
+		
+		if enabled then
+			sitDown()
+		else
+			standUp()
+		end
+		updateButton()
+	end
+	
+	-- Restore state
+	if enabled then
+		task.wait(0.5)
+		sitDown()
+	end
+	updateButton()
 	
 	UserInputService.JumpRequest:Connect(function()
 		if enabled then
 			enabled = false
-			button.Text = "SIT DOWN"
-			button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+			PersistentValues.Sit.Value = 0
 			standUp()
+			updateButton()
 		end
 	end)
 	
@@ -933,17 +1104,21 @@ local function TDKKE_fake_script() -- Sit.Sit
 		character = newCharacter
 		humanoid = character:WaitForChild("Humanoid")
 		enabled = false
-		button.Text = "SIT DOWN"
-		button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		PersistentValues.Sit.Value = 0
+		updateButton()
 	end)
 	
 	button.MouseButton1Click:Connect(toggle)
 	
-	button.Text = "SIT DOWN"
-	button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	task.spawn(function()
+		while task.wait(1) do
+			updateButton()
+		end
+	end)
 end
-coroutine.wrap(TDKKE_fake_script)()
-local function UFJEKX_fake_script() -- MaxZoom.MaxZoom 
+coroutine.wrap(XSBRDCB_fake_script)()
+
+local function LCQL_fake_script()
 	local script = Instance.new('LocalScript', MaxZoom)
 
 	local textBox = script.Parent
@@ -952,7 +1127,7 @@ local function UFJEKX_fake_script() -- MaxZoom.MaxZoom
 	local player = Players.LocalPlayer
 	
 	local defaultMaxZoom = player.CameraMaxZoomDistance
-	local currentMaxZoom = defaultMaxZoom
+	local currentMaxZoom = tonumber(PersistentValues.MaxZoomValue.Value) or defaultMaxZoom
 	
 	local function setMaxZoom(value)
 		player.CameraMaxZoomDistance = value
@@ -964,6 +1139,7 @@ local function UFJEKX_fake_script() -- MaxZoom.MaxZoom
 	
 			if input == "" or input:match("^%s*$") then
 				currentMaxZoom = defaultMaxZoom
+				PersistentValues.MaxZoomValue.Value = tostring(defaultMaxZoom)
 				textBox.PlaceholderText = "MAXZOOM: " .. defaultMaxZoom
 				textBox.Text = ""
 				setMaxZoom(defaultMaxZoom)
@@ -974,6 +1150,7 @@ local function UFJEKX_fake_script() -- MaxZoom.MaxZoom
 	
 			if value and value >= 0 then
 				currentMaxZoom = value
+				PersistentValues.MaxZoomValue.Value = tostring(value)
 				textBox.PlaceholderText = "MAXZOOM: " .. value
 				textBox.Text = ""
 				setMaxZoom(value)
@@ -990,12 +1167,14 @@ local function UFJEKX_fake_script() -- MaxZoom.MaxZoom
 		setMaxZoom(currentMaxZoom)
 	end)
 	
-	textBox.PlaceholderText = "MAXZOOM: " .. defaultMaxZoom
-	textBox.Text = ""
+	-- Restore state
 	setMaxZoom(currentMaxZoom)
+	textBox.PlaceholderText = "MAXZOOM: " .. currentMaxZoom
+	textBox.Text = ""
 end
-coroutine.wrap(UFJEKX_fake_script)()
-local function BYDB_fake_script() -- MinZoom.MinZoom 
+coroutine.wrap(LCQL_fake_script)()
+
+local function GNFEGD_fake_script()
 	local script = Instance.new('LocalScript', MinZoom)
 
 	local textBox = script.Parent
@@ -1004,7 +1183,7 @@ local function BYDB_fake_script() -- MinZoom.MinZoom
 	local player = Players.LocalPlayer
 	
 	local defaultMinZoom = player.CameraMinZoomDistance
-	local currentMinZoom = defaultMinZoom
+	local currentMinZoom = tonumber(PersistentValues.MinZoomValue.Value) or defaultMinZoom
 	
 	local function setMinZoom(value)
 		player.CameraMinZoomDistance = value
@@ -1016,6 +1195,7 @@ local function BYDB_fake_script() -- MinZoom.MinZoom
 	
 			if input == "" or input:match("^%s*$") then
 				currentMinZoom = defaultMinZoom
+				PersistentValues.MinZoomValue.Value = tostring(defaultMinZoom)
 				textBox.PlaceholderText = "MINZOOM: " .. defaultMinZoom
 				textBox.Text = ""
 				setMinZoom(defaultMinZoom)
@@ -1026,6 +1206,7 @@ local function BYDB_fake_script() -- MinZoom.MinZoom
 	
 			if value and value >= 0 then
 				currentMinZoom = value
+				PersistentValues.MinZoomValue.Value = tostring(value)
 				textBox.PlaceholderText = "MINZOOM: " .. value
 				textBox.Text = ""
 				setMinZoom(value)
@@ -1042,8 +1223,9 @@ local function BYDB_fake_script() -- MinZoom.MinZoom
 		setMinZoom(currentMinZoom)
 	end)
 	
-	textBox.PlaceholderText = "MINZOOM: " .. defaultMinZoom
-	textBox.Text = ""
+	-- Restore state
 	setMinZoom(currentMinZoom)
+	textBox.PlaceholderText = "MINZOOM: " .. currentMinZoom
+	textBox.Text = ""
 end
-coroutine.wrap(BYDB_fake_script)()
+coroutine.wrap(GNFEGD_fake_script)()
